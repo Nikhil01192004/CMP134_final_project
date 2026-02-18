@@ -1,6 +1,7 @@
 # Robot Management System
 
-MSc Software Engineering – CMP9134
+MSc Cloud Computing
+Module: CMP9134 Software Engineering
 
 ## Description
 Web-based dashboard for monitoring and controlling a virtual robot via REST API.
@@ -14,3 +15,4 @@ Web-based dashboard for monitoring and controlling a virtual robot via REST API.
 
 ## Status
 Phase 1: Environment Setup Complete
+
