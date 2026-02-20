@@ -18,3 +18,5 @@ Logs are stored securely on the server.
 No public API endpoint exposes audit logs.
 
 Passwords/API keys are never stored in plain text.
+
+edited.
