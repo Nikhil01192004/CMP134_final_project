@@ -1,15 +1,8 @@
 from fastapi import FastAPI
-from app.database import engine, Base
-from app.routers import auth
-from app.models import user
+from app.auth import router as auth_router  # import your auth router
 
-app = FastAPI(title="Robot Management System")
+# Create FastAPI app
+app = FastAPI(title="My Auth API")
 
-Base.metadata.create_all(bind=engine)
-
-app.include_router(auth.router)
-
-
-@app.get("/")
-def root():
-    return {"message": "Robot Management Backend Running"}
+# Include the auth router so all endpoints in auth.py appear in Swagger
+app.include_router(auth_router)
