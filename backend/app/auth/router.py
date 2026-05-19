@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.auth.models import User
-from app.auth.schemas import UserCreate, Token, UserOut
+from app.auth.schemas import UserCreate, Token, UserOut, LoginRequest
 from app.auth.service import hash_password, verify_password, create_access_token
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -27,10 +27,25 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
     return user
 
 
+
 @router.post("/login", response_model=Token)
-def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == form.username).first()
-    if not user or not verify_password(form.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    access_token = create_access_token(data={"sub": user.username, "role": user.role})
-    return Token(access_token=access_token, role=user.role)
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == payload.username).first()
+
+    if not user or not verify_password(payload.password, user.hashed_password):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid credentials"
+        )
+
+    access_token = create_access_token(
+        data={
+            "sub": user.username,
+            "role": user.role
+        }
+    )
+
+    return Token(
+        access_token=access_token,
+        role=user.role
+    )

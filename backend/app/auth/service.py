@@ -5,10 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import (
-    HTTPBearer,
-    HTTPAuthorizationCredentials,
-)
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
@@ -21,7 +18,9 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = HTTPBearer()
+
+# ✅ FIX: auto_error=False prevents FastAPI from auto-returning 403
+oauth2_scheme = HTTPBearer(auto_error=False)
 
 
 # ---------------------------------------------------------------------------
@@ -79,23 +78,29 @@ def get_current_user(
     db: Session = Depends(get_db),
 ) -> User:
 
+    # ✅ FIX: no token provided → must be 401 (not 403)
+    if token is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     payload = decode_token(token.credentials)
 
     username: str = payload.get("sub")
 
     if username is None:
         raise HTTPException(
-            status_code=401,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload",
         )
 
-    user = db.query(User).filter(
-        User.username == username
-    ).first()
+    user = db.query(User).filter(User.username == username).first()
 
     if user is None:
         raise HTTPException(
-            status_code=401,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
         )
 
@@ -114,7 +119,7 @@ def require_role(required_role: str):
             and current_user.role != "commander"
         ):
             raise HTTPException(
-                status_code=403,
+                status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions",
             )
 
