@@ -1,37 +1,46 @@
-name: Run Pytest
+name: Robot Deployment Check CI
 
 on:
   push:
-    branches: ["main", "master"]
+    branches: [ "main" ]
   pull_request:
-    branches: ["main", "master"]
+    branches: [ "main" ]
 
 jobs:
-  test:
+  test-and-build:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        python-version: [3.12]
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout Code
+      uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
+    # --- STEP 1: PREPARE DOCKER BUILD ENGINE ---
+    # Buildx is required to handle advanced caching features in GitHub Actions
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
 
-      - name: Upgrade pip
-        run: python -m pip install --upgrade pip
+    # --- STEP 2: CACHING LAYERS ---
+    # This persists the Docker layers between runs. 
+    # If requirements.txt hasn't changed, it skips the 'pip install' step inside the image.
+    # Note: Updated to v4 for better reliability and performance
+    - name: Cache Docker layers
+      uses: actions/cache@v4
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
 
-      - name: Install dependencies
-        working-directory: backend
-        run: |
-          pip install -r requirements.txt
+    # --- STEP 3: ORCHESTRATION & VERIFICATION ---
+    # We use --abort-on-container-exit or direct exec validation to ensure 
+    # failures cause the GitHub Action pipeline to fail.
+    - name: Build and Test with Docker Compose
+      run: |
+        # 1. Build and launch the containers in the background
+        docker compose up -d --build
 
-      - name: Run tests
-        working-directory: backend
-        run: |
-          pytest -v
+        # 2. Execute Pytest inside the running backend container
+        # The -T flag disables pseudo-TTY allocation, which is ideal for CI logs
+        docker compose exec -T backend python -m pytest -v
+
+        # 3. Cleanup: Stops containers and removes internal networks
+        docker compose down
